@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!-- UART Controller Register Definition File -->
+<spirit:component xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009"
+                                xmlns:cadence="http://www.cadence.com/SPIRIT/1685-2009/vendorExtensions"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.cadence.com/SPIRIT/1685-2009/vendorExtensions http://www.cadence.com/SPIRIT/1685-2009/vendorExtensions/cadenceSpiritVendorExtensions.xsd http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009 http://www.accellera.org/images/xmlschema/spirit/1685-2009/index.xsd"><!--http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009/index.xsd"-->
+<!-- REQUIRED HEADER INFO - DOES NOT END UP IN ANY GENERAGED SV FILES -->
+	<spirit:vendor>Nurlink</spirit:vendor>
+	<spirit:library>Nurlink_lib</spirit:library>
+	<spirit:name>KUNPENG</spirit:name>
+	<spirit:version>1.0</spirit:version>
+        <!-- START OF ADDRESS MAP DEFINITION -->
+	<spirit:memoryMaps>
+		<spirit:memoryMap>
+			<spirit:name>KUNPENG_reg_model_t</spirit:name>
+            {%- for one_blk in all_blk %}
+                <spirit:addressBlock>
+                    <spirit:name>{{one_blk.name}}</spirit:name>
+                    <spirit:baseAddress>{{"0x%x"%one_blk.base_address}}</spirit:baseAddress>
+                    <spirit:range>{{"0x%x"%(one_blk.reg[-1].bitfield[-1].ADDRESS+4)}}</spirit:range>
+                    <spirit:width>32</spirit:width>
+                    {%- for one_reg in one_blk.reg %}
+                    <spirit:register>
+                        <spirit:name>{{one_reg.bitfield[0].REG_NAME}}</spirit:name>
+                        <spirit:addressOffset>{{one_reg.bitfield[0].ADDRESS}}</spirit:addressOffset>
+                        <spirit:size>32</spirit:size>
+                        <spirit:reset>
+                            <spirit:value>{{one_reg.bitfield[0].RESET_VALUE}}</spirit:value>
+                        </spirit:reset>
+                        {%- for one_field in one_reg.bitfield %}
+                            <spirit:field>
+                                <spirit:name>{{one_field.SIG_NAME}}</spirit:name>
+                                <spirit:access>{{one_field.ACCESS}}</spirit:access>
+                                <spirit:bitOffset>{{one_field.bitoffset}}</spirit:bitOffset>
+                                <spirit:bitWidth>{{one_field.bitwidth}}</spirit:bitWidth>
+                            </spirit:field>
+                        {%- endfor %}
+                    </spirit:register>
+                    {%- endfor %}
+                </spirit:addressBlock>
+            {%- endfor %}
+		</spirit:memoryMap>
+	</spirit:memoryMaps>
+</spirit:component>
