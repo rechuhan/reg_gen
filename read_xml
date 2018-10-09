@@ -1,0 +1,126 @@
+import xml.etree.ElementTree as ET
+from jinja2 import Environment
+import sys
+import os
+
+fixstring_dw = '{http://www.accellera.org/XMLSchema/IPXACT/1685-2014}'
+fixstring_sdk = '{http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009}'
+fixstring = ''
+
+def go_over(root):
+    global fixstring
+    #name = root.find(fixstring+'name')
+    #print("name is %s"%name.text)
+    memoryMaps = root.find(fixstring_dw+'memoryMaps')
+    if memoryMaps:
+        fixstring = fixstring_dw
+    else:
+        memoryMaps = root.find(fixstring_sdk+'memoryMaps')
+        fixstring = fixstring_sdk
+
+    if not memoryMaps:
+        print("ERROR, no memorymaps found")
+        os._exit(9)
+    all_reset = []
+    all_w0_mask = []
+    all_w1_mask = []
+    all_address = []
+    for  one_map in memoryMaps.findall(fixstring+'memoryMap'):
+        for one_blk in one_map.findall(fixstring+'addressBlock'):
+            blk_name = one_blk.find(fixstring+'name')
+            #print("blk_name %s"%blk_name.text)
+            blk_base_address = one_blk.find(fixstring+'baseAddress').text
+            #print("blk_base_address%s"%blk_base_address.text)
+            blk_range = one_blk.find(fixstring+'range').text
+            #print("blk_range%s"%blk_range.text)
+            blk_width = one_blk.find(fixstring+'width').text
+            #print("blk_width%s"%blk_width.text)
+            for one_reg in one_blk.findall(fixstring+'register'):
+                #print('reg_name %s'%one_reg.find(fixstring+'name').text)
+                #print('reg_offset %s'%one_reg.find(fixstring+'addressOffset').text)
+                reg_reset_value = get_reset_value(one_reg)
+                reg_w0_mask = get_w0_mask(one_reg)
+                reg_w1_mask = get_w1_mask(one_reg)
+                offset = get_offset(one_reg)
+                all_address.append(myint(blk_base_address) + myint(offset))
+                all_reset.append(reg_reset_value)
+                all_w0_mask.append(reg_w0_mask)
+                all_w1_mask.append(reg_w1_mask)
+    return all_address, all_reset, all_w0_mask, all_w1_mask
+
+def get_offset (node):
+    global fixstring
+    offset = node.find(fixstring+"addressOffset").text
+    return offset
+
+def get_w1_mask(node):
+    w1_mask = 0
+    for one_field in node.findall(fixstring+"field"):
+        field_access = one_field.find(fixstring+"access").text
+        field_offset = myint(one_field.find(fixstring+"bitOffset").text)
+        field_width = myint(one_field.find(fixstring+"bitWidth").text)
+        if field_access=="read-write":
+            w1_mask += (0xffffffff>>(32-field_width))<< field_offset;
+    return w1_mask
+
+def get_w0_mask(node):
+    w0_mask = 0
+    for one_field in node.findall(fixstring+"field"):
+        field_access = one_field.find(fixstring+"access").text
+        field_offset = myint(one_field.find(fixstring+"bitOffset").text)
+        field_width = myint(one_field.find(fixstring+"bitWidth").text)
+        if field_access=="read-write":
+            w0_mask += (0xffffffff>>(32-field_width))<< field_offset;
+    return w0_mask
+
+def get_reset_value(node):
+    global fixstring
+    #print("get reset value fixstring:%s"%fixstring)
+    reset_value = 0
+    try:
+        reg_reset_value = myint(node.find(fixstring+"reset").find(fixstring+"value").text)
+    except:
+        for one_field in node.findall(fixstring+"field"):
+            try:
+                field_reset_value = myint(one_field.find(fixstring+"resets").find(fixstring+"reset").find(fixstring+"value").text)
+            except:
+                name = one_field.find(fixstring+'name').text
+                print("Wrong at %s"%name)
+                os._exit(11)
+            field_offset = myint(one_field.find(fixstring+"bitOffset").text)
+            reset_value += field_reset_value << field_offset;
+    return reset_value
+
+def myint(in_str):
+    if in_str.startswith("'h"):
+        return int(in_str[2:], 16)
+    elif in_str.startswith("0x"):
+        return int(in_str[2:], 16)
+    else:
+        return int(in_str)
+    return
+
+def gen(template_file_name, output_name, all_address, all_reset, all_w0_mask, all_w1_mask, root):
+    #print("output_name is %s"%output_name)
+    env = Environment()
+    t = env.from_string(open(template_file_name).read())
+    txt = t.render(root=root, all_address=all_address, all_reset=all_reset, all_w0_mask=all_w0_mask, all_w1_mask=all_w1_mask,myint=myint, len=len)
+    #print("txt is \n%s"%txt)
+    s = txt.encode('utf-8',"ignore")
+    fp = open('%s.h'%output_name, 'w')
+    fp.write(txt)
+    fp.close()
+
+def doit(file_name):
+    tree = ET.parse(file_name)
+    root = tree.getroot()
+    #for child in root:
+    #    print(child.tag, child.attrib)
+    all_address, all_reset, all_w0_mask, all_w1_mask = go_over(root)
+    output_name = os.path.basename(file_name).split('.')[0]
+    gen("reg_hdr.template.h", output_name, all_address, all_reset, all_w0_mask, all_w1_mask, root)
+
+
+if __name__=='__main__':
+    doit(sys.argv[1])
+
