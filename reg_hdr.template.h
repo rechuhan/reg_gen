@@ -5,8 +5,8 @@
     {%- set memoryMaps = root.find(prefix+"memoryMaps") -%}
 {%- endif %}
     {%- for one_map in memoryMaps.findall(prefix+"memoryMap") %}
+        {%- set blk_name = one_map.find(prefix+"name").text -%}
         {%- for one_blk in one_map.findall(prefix+"addressBlock") %}
-            {%- set blk_name = one_blk.find(prefix+"name").text -%}
             {%- set blk_base_address = one_blk.find(prefix+"addressBlock").text -%}
             {%- set blk_range = one_blk.find(prefix+"range").text -%}
             {%- set blk_width = one_blk.find(prefix+"width").text -%}
